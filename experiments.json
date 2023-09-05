@@ -1,0 +1,18 @@
+[
+    {
+        "model": "WhisperX",
+        "time_taken": 3.3133585453033447,
+        "start_cpu": 15.8,
+        "end_cpu": 18.4,
+        "start_memory": 24.8,
+        "end_memory": 30.9
+    },
+    {
+        "model": "Whisper",
+        "time_taken": 5.525402545928955,
+        "start_cpu": 0.0,
+        "end_cpu": 16.7,
+        "start_memory": 30.9,
+        "end_memory": 34.0
+    }
+]
