@@ -34,7 +34,7 @@ The purpose of this work is to investigate the development of voice-activated pe
 #### Local Setup (Dell G3 with GTX 1060 Ti and 32GB RAM running Ubuntu 23.x)
 
 - **Rationale**: For better control over resources and performance
-- **Setup**: Clone of public GitHub repository, Flask for server-based execution, and Uvicorn + Nginx for local deployment
+- **Setup**: Clone of public GitHub repository, Called API to Digital Ocean Flask for server-based execution + Nginx
 ### Conclusion
 
 - **Time Investment**: 6-7 hours
