@@ -1,62 +1,64 @@
 import os
+import random
 import numpy as np
-import sounddevice as sd
-import librosa
-from scipy.io import wavfile
-from sklearn.neural_network import MLPClassifier
-from skl2onnx import convert_sklearn
-from skl2onnx.common.data_types import FloatTensorType
+import subprocess
+from pydub import AudioSegment
 
-# Directory Management
-def create_directory(path):
-    if not os.path.exists(path):
-        os.makedirs(path)
+# Configurable Variables
+pitch_factor_min = 0.8
+pitch_factor_max = 1.2
+noise_level = 0.005  # Increasing the noise level
+n_samples = 10  # You can change this or keep using input
 
-# Audio Operations
-def save_audio(audio, filename, path='hotword'):
-    filepath = os.path.join(path, filename)
-    wavfile.write(filepath, 44100, audio)
+# Create dataset folders
+os.makedirs('hotword', exist_ok=True)
+os.makedirs('not_hotword', exist_ok=True)
 
-def record_audio(duration, samplerate=44100):
-    audio = sd.rec(int(samplerate * duration), samplerate=samplerate, channels=2, dtype='int16')
-    sd.wait()
-    return audio
+# Function to generate audio using Piper
+def generate_audio_with_piper(text, filename):
+    cmd = f"echo '{text}' | piper --model en_US-lessac-medium --output_file {filename}"
+    subprocess.run(cmd, shell=True)
 
-def augment_audio(audio, n_augment=10):
-    return [audio + np.random.normal(0, 1, audio.shape) for _ in range(n_augment)]
+# Function to add random noise
+def add_noise(audio, noise_level=0.2):
+    audio_samples = np.array(audio.get_array_of_samples())
+    max_amplitude = np.max(np.abs(audio_samples))
+    noise = np.random.normal(0, max_amplitude * noise_level, audio_samples.shape[0])
+    audio_with_noise = audio_samples + noise
+    audio_with_noise = np.clip(audio_with_noise, -32768, 32767)  # Clip values to int16 range
+    audio_with_noise = np.int16(audio_with_noise)
+    return AudioSegment(
+        audio_with_noise.tobytes(),
+        frame_rate=audio.frame_rate,
+        sample_width=audio.sample_width,
+        channels=audio.channels
+    )
 
-# Feature Extraction
-def extract_features(audio_data):
-    audio_mono = np.mean(audio_data, axis=1)
-    mel_spec = librosa.feature.melspectrogram(y=audio_mono, sr=44100)
-    return mel_spec.mean(axis=1)
 
-# Main Execution
-if __name__ == '__main__':
-    create_directory('hotword')
+# Function to randomly change pitch
+def random_change_pitch(audio):
+    pitch_factor = random.uniform(pitch_factor_min, pitch_factor_max)
+    return audio._spawn(audio.raw_data, overrides={
+        "frame_rate": int(audio.frame_rate * pitch_factor)
+    }).set_frame_rate(audio.frame_rate)
 
-    # Record and augment hotword
-    print("Recording hotword. Speak into the mic.")
-    hotword = record_audio(2)
-    print("Hotword recorded.")
-    save_audio(hotword, 'original_hotword.wav')
-    augmented_hotwords = augment_audio(hotword)
+# Generate hotword samples
+text = "Link!"
+for i in range(n_samples):
+    output_filename = f'hotword/hotword_{i}.wav'
+    generate_audio_with_piper(text, output_filename)
+    audio = AudioSegment.from_file(output_filename)
+    audio = random_change_pitch(audio)
+    audio.export(f"hotword/hotword_{i}.wav", format="wav")
 
-    # Feature Extraction
-    X_train = [extract_features(aug) for aug in augmented_hotwords]
-    y_train = [1] * len(X_train)
+# Generate not-hotword samples
+random_words = ["apple", "banana", "cherry", "date", "elderberry"]
+for i in range(n_samples):
+    random_word = np.random.choice(random_words)
+    output_filename = f'not_hotword/not_hotword_{i}.wav'
+    generate_audio_with_piper(random_word, output_filename)
+    audio = AudioSegment.from_file(output_filename)
+    audio = add_noise(audio, noise_level)
+    audio.export(f"not_hotword/not_hotword_{i}.wav", format="wav")
 
-    # Train and save the model
-    clf = MLPClassifier(hidden_layer_sizes=(100,), max_iter=500)
-    clf.fit(X_train, y_train)
-
-    # Export to ONNX
-    initial_type = [('float_input', FloatTensorType([None, X_train[0].shape[0]]))]
-    onnx_model = convert_sklearn(clf, initial_types=initial_type)
-    with open("hotword_model.onnx", "wb") as f:
-        f.write(onnx_model.SerializeToString())
-
-    # Test the original hotword
-    original_feature = extract_features(hotword).reshape(1, -1)
-    original_result = clf.predict(original_feature)
-    print("Original hotword detected successfully.") if original_result == 1 else print("Original hotword not detected. Retrain the model.")
+print(f"Generated {n_samples} hotword and {n_samples} not-hotword samples.")
