@@ -1,71 +1,65 @@
 import sounddevice as sd
-import numpy as np
-import librosa
-from scipy.io import wavfile
-import onnxruntime
-import whisperx
-from scipy.io.wavfile import write
-import os
+import time
+from transformers import VitsModel, AutoTokenizer
+import torch
+from queue import Queue
+import threading
+import concurrent.futures
 
-# Initialize ONNX runtime and Whisper
-sess = onnxruntime.InferenceSession("hotword_model.onnx")
-device = "cuda"
-compute_type = "float16"
-whisper_model = whisperx.load_model("small", device, compute_type=compute_type)
+# Initialize model and tokenizer
+model = VitsModel.from_pretrained("facebook/mms-tts-eng")
+tokenizer = AutoTokenizer.from_pretrained("facebook/mms-tts-eng")
 
-# Function to extract features
-def extract_features(audio_data):
-    audio_mono = np.mean(audio_data, axis=1)
-    mel_spec = librosa.feature.melspectrogram(y=audio_mono, sr=44100)
-    return mel_spec.mean(axis=1).reshape(1, -1)
+# Initialize global queue for texts and audios
+text_queue = Queue()
+audio_queue = Queue()
 
-# Transcribe using Whisper
-def record_and_transcribe():
-    print("Start speaking...")
-    temp_audio_path = "temp_audio.wav"
-    silent_chunk_counter = 0
-    silence_threshold = 200
+# Function to generate audio
+def generate_audio(text):
+    inputs = tokenizer(text, return_tensors="pt")
+    with torch.no_grad():
+        output = model(**inputs).waveform
+    waveform = output.squeeze().numpy()
+    return waveform
 
-    all_audio_data = []
+# Thread to populate audio queue
+def populate_audio_queue():
     while True:
-        audio_chunk = sd.rec(int(44100 * 0.5), samplerate=44100, channels=2, dtype='int16')
-        sd.wait()
-        silent_chunk_counter += 1 if np.mean(np.abs(audio_chunk)) < silence_threshold else 0
-
-        if silent_chunk_counter > 3:
+        next_text = text_queue.get()
+        if next_text == "EXIT":
+            audio_queue.put("EXIT")
             break
 
-        all_audio_data.append(audio_chunk)
+        audio = generate_audio(next_text)
+        audio_queue.put(audio)
 
-    audio = np.vstack(all_audio_data)
+# Thread to play audio
+def play_audio():
+    while True:
+        next_audio = audio_queue.get()
+        if next_audio == "EXIT":
+            break
+        sd.play(next_audio, model.config.sampling_rate)
+        sd.wait()
+        time.sleep(0.5)  # 0.5-second delay between sentences
 
-    # Save to a temporary file
-    write(temp_audio_path, 44100, audio)
+# Function to populate text queue
+def populate_text_queue(long_text):
+    sentences = long_text.split('. ')
+    for sentence in sentences:
+        text_queue.put(sentence.strip())
+    text_queue.put("EXIT")
 
-    # Transcription
-    transcribe_audio = whisperx.load_audio(temp_audio_path)
-    result = whisper_model.transcribe(transcribe_audio, batch_size=16)
-    print("Transcription result:", result["segments"])
+# Your long text here
+long_text = "I was born in Tel Aviv, in what is now Israel, in 1934, while my mother was visiting her extended family there; our regular domicile was in Paris. My parents were Lithuanian Jews, who had immigrated to France in the early 1920s and had done quite well. My father was the chief of research in a large chemical factory. But although my parents loved most things French and had some French friends, their roots in France were shallow, and they never felt completely secure. Of course, whatever vestiges of security they’d had were lost when the Germans swept into France in 1940. What was probably the first graph I ever drew, in 1941, showed my family’s fortunes as a function of time – and around 1940 the curve crossed into the negative domain. I will never know if my vocation as a psychologist was a result of my early exposure to interesting gossip, or whether my interest in gossip was an indication of a budding vocation. Like many other Jews, I suppose, I grew up in a world that consisted exclusively of people and words, and most of the words were about people."
 
-    # Optional: remove temp file
-    #os.remove(temp_audio_path)
+# Populate the text queue
+populate_text_queue(long_text)
 
+# Create and start threads
+populate_audio_thread = threading.Thread(target=populate_audio_queue)
+play_audio_thread = threading.Thread(target=play_audio)
 
-    # Transcription
-    transcribe_audio = whisperx.load_audio(audio)
-    result = whisper_model.transcribe(transcribe_audio, batch_size=16)
-    print("Transcription result:", result["segments"])
+populate_audio_thread.start()
+play_audio_thread.start()
 
-
-# Listen for hotword and activate recording and transcription
-while True:
-    print("Listening for hotword...")
-    audio_chunk = sd.rec(int(44100 * 2), samplerate=44100, channels=2, dtype='int16')
-    sd.wait()
-
-    features = extract_features(audio_chunk)
-    pred_onx = sess.run(None, {'float_input': features.astype(np.float32)})[0]
-
-    if pred_onx == 1:
-        print("Hotword detected. Starting transcription.")
-        record_and_transcribe()
