@@ -3,12 +3,18 @@ import random
 import numpy as np
 import subprocess
 from pydub import AudioSegment
+import nltk
+from nltk.corpus import words
+
+#Get random words
+nltk.download('words')
+word_list = words.words()
 
 # Configurable Variables
 pitch_factor_min = 0.8
 pitch_factor_max = 1.2
 noise_level = 0.005  # Increasing the noise level
-n_samples = 10  # You can change this or keep using input
+n_samples = 50  # You can change this or keep using input
 
 # Create dataset folders
 os.makedirs('hotword', exist_ok=True)
@@ -52,7 +58,7 @@ for i in range(n_samples):
     audio.export(f"hotword/hotword_{i}.wav", format="wav")
 
 # Generate not-hotword samples
-random_words = ["apple", "banana", "cherry", "date", "elderberry"]
+random_words = np.random.choice(word_list, size=200)
 for i in range(n_samples):
     random_word = np.random.choice(random_words)
     output_filename = f'not_hotword/not_hotword_{i}.wav'
