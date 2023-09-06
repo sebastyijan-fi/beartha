@@ -2,3 +2,6 @@
 myenv
 info.txt
 audio.mp3
+hotword
+hotword_model.onnx
+__pycache__
