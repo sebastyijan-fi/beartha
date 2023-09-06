@@ -109,6 +109,13 @@ def generate_and_play(text):
         logging.error(f"Error during audio generation and playback: {e}")
     logging.info(f"Audio generation and playback time: {time.time() - start_time} seconds")
 
+def on_closing():
+    global rec_status
+    rec_status = False
+    root.quit()
+    root.destroy()
+
+
 root = tk.Tk()
 root.title("Voice Assistant")
 
@@ -120,5 +127,7 @@ btn_start.grid(row=0, column=0, sticky=tk.W)
 
 btn_stop = ttk.Button(frame, text="Stop Recording", command=stop_recording)
 btn_stop.grid(row=0, column=1, sticky=tk.W)
+
+root.protocol("WM_DELETE_WINDOW", on_closing)
 
 root.mainloop()
