@@ -5,3 +5,7 @@ audio.mp3
 hotword
 hotword_model.onnx
 __pycache__
+hotword
+not_hotword
+en_US-lessac-medium.onnx
+en_US-lessac-medium.onnx.json

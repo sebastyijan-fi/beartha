@@ -6,7 +6,7 @@ import onnxruntime
 import whisperx
 
 # Initialize ONNX runtime and Whisper
-sess = onnxruntime.InferenceSession("model.onnx")
+sess = onnxruntime.InferenceSession("hotword.onnx", providers=['CPUExecutionProvider'])
 device = "cuda"
 compute_type = "float16"
 whisper_model = whisperx.load_model("small", device, compute_type=compute_type)

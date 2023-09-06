@@ -8,6 +8,45 @@ The purpose of this work is to investigate the development of voice-activated pe
 
 ---
 
+## Diary Entry: The Iterative Journey Toward Voice-Activated Assistants - September 6, 2023
+
+### Embracing Minimalism & Hotkeys over Hotwords for Quick Iterations
+
+#### Today's Milestones
+
+- Produced hotwords for voice activation
+- Devised a script for generating datasets for hotwords and non-hotwords
+- Reassessed and leaned towards a hotkey-based approach for quick prototype iteration
+
+#### Insights & Observations
+
+I spent the day diving into the development of a voice-activated assistant. Initially, the focus was on using hotwords for activation, backed by training a machine-learning model + onnx. While fully doable, I started leaning towards using hotkeys as a more immediate and reliable solution.
+
+The idea of a minimalist assistant that resides in the system tray came up, which seems more pragmatic. Upon pressing an unused hotkey, a pop-up would appear to indicate it's "listening," ready for a command that would be processed through OpenAI's API and TTS.
+
+#### Technology Choices
+
+- **TTS Model:** Piper, a decent Text-to-Speech engine. Investigating voice cloning and multi-language support. [Piper](https://github.com/rhasspy/piper)
+- **STT Model:** WhisperX, which seems superior to the basic Whisper. Need to confirm license details. [WhisperX](https://github.com/m-bain/whisperX)
+
+#### Security & Accessibility
+
+Security remains a concern, especially for the hotword-based approach that requires the software to be always listening. Accessibility won't be dismissed; both hotkeys and hotwords are good ideas.
+
+#### Future Considerations
+
+- The ability to interrupt ongoing TTS speech for a more interactive experience.
+- Need for sentence splitting and queueing for natural speech synthesis, JSON -> key value pair.
+- Considering the tech stack and potential platforms (Ubuntu for development, but considering Windows and mobile).
+
+#### Conclusion
+
+Today's work indicates that a minimalist, yet robust, voice-activated assistant is entirely plausible. By utilizing hotkeys for quicker iterations, I can develop a functional prototype in a shorter time frame. The end goal remains the same: a low-latency, highly responsive, and user-friendly voice assistant.
+
+**Time Investment**: 8-9 hours
+
+---
+
 ## Diary Notation: Bachelor's Thesis on Voice-Activated Personal Assistants - September 5, 2023
 
 ### Experimental Setup and Findings
